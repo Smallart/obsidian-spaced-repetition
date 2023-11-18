@@ -1,4 +1,4 @@
-import { Notice, Plugin, TAbstractFile, TFile, getAllTags, FrontMatterCache } from "obsidian";
+import { Notice, Plugin, TAbstractFile, TFile, getAllTags, FrontMatterCache, Menu } from "obsidian";
 import * as graph from "pagerank.js";
 
 import { SRSettingTab, SRSettings, DEFAULT_SETTINGS } from "src/settings";
@@ -34,7 +34,7 @@ import { NoteEaseCalculator } from "./NoteEaseCalculator";
 import { DeckTreeStatsCalculator } from "./DeckTreeStatsCalculator";
 import { NoteEaseList } from "./NoteEaseList";
 import { QuestionPostponementList } from "./QuestionPostponementList";
-
+import { NoteReviewWin } from "./NoteReviewWin";
 interface PluginData {
     settings: SRSettings;
     buryDate: string;
@@ -104,15 +104,28 @@ export default class SRPlugin extends Plugin {
             }
         });
 
-        this.addRibbonIcon("SpacedRepIcon", t("REVIEW_CARDS"), async () => {
-            if (!this.syncLock) {
-                await this.sync();
-                this.openFlashcardModal(
-                    this.deckTree,
-                    this.remainingDeckTree,
-                    FlashcardReviewMode.Review,
-                );
-            }
+        this.addRibbonIcon("SpacedRepIcon", t("REVIEW"), (event) => {
+            const menu = new Menu();
+
+            menu.addItem(item => item.setTitle("复习卡片").onClick(async () => {
+                if (!this.syncLock) {
+                    await this.sync();
+                    this.openFlashcardModal(
+                        this.deckTree,
+                        this.remainingDeckTree,
+                        FlashcardReviewMode.Review,
+                    );
+                }
+            }));
+
+            menu.addItem(item => item.setTitle("复习笔记").onClick(async () => {
+                if (!this.syncLock) {
+                    await this.sync();
+                    this.reviewNoteinNewWin();
+                }
+            }));
+
+            menu.showAtMouseEvent(event);
         });
 
         if (!this.data.settings.disableFileMenuReviewOptions) {
@@ -159,7 +172,7 @@ export default class SRPlugin extends Plugin {
         });
 
         this.addCommand({
-            id: "srs-note-review-easy",
+            id: "rs-note-review-easy",
             name: t("REVIEW_NOTE_EASY_CMD"),
             callback: () => {
                 const openFile: TFile | null = this.app.workspace.getActiveFile();
@@ -481,9 +494,9 @@ export default class SRPlugin extends Plugin {
         if (this.data.settings.showDebugMessages) {
             console.log(
                 "SR: " +
-                    t("SYNC_TIME_TAKEN", {
-                        t: Date.now() - now.valueOf(),
-                    }),
+                t("SYNC_TIME_TAKEN", {
+                    t: Date.now() - now.valueOf(),
+                }),
             );
         }
 
@@ -613,8 +626,8 @@ export default class SRPlugin extends Plugin {
             fileText = fileText.replace(
                 SCHEDULING_INFO_REGEX,
                 `---\n${schedulingInfo[1]}sr-due: ${dueString}\n` +
-                    `sr-interval: ${interval}\nsr-ease: ${ease}\n` +
-                    `${schedulingInfo[5]}---`,
+                `sr-interval: ${interval}\nsr-ease: ${ease}\n` +
+                `${schedulingInfo[5]}---`,
             );
         } else if (YAML_FRONT_MATTER_REGEX.test(fileText)) {
             // new note with existing YAML front matter
@@ -622,7 +635,7 @@ export default class SRPlugin extends Plugin {
             fileText = fileText.replace(
                 YAML_FRONT_MATTER_REGEX,
                 `---\n${existingYaml[1]}sr-due: ${dueString}\n` +
-                    `sr-interval: ${interval}\nsr-ease: ${ease}\n---`,
+                `sr-interval: ${interval}\nsr-ease: ${ease}\n---`,
             );
         } else {
             fileText =
@@ -659,6 +672,18 @@ export default class SRPlugin extends Plugin {
         }
     }
 
+    // 在新窗口回顾笔记
+    async reviewNoteinNewWin(): Promise<void> {
+        const deckKey: string = Object.keys(this.reviewDecks)[0];
+        if (!Object.prototype.hasOwnProperty.call(this.reviewDecks, deckKey)) {
+            new Notice(t("NO_DECK_EXISTS", { deckName: deckKey }));
+            return;
+        }
+        this.lastSelectedReviewDeck = deckKey;
+        const deck = this.reviewDecks[deckKey];
+        this.openInNewWin(deck);
+    }
+
     async reviewNextNote(deckKey: string): Promise<void> {
         if (!Object.prototype.hasOwnProperty.call(this.reviewDecks, deckKey)) {
             new Notice(t("NO_DECK_EXISTS", { deckName: deckKey }));
@@ -667,7 +692,6 @@ export default class SRPlugin extends Plugin {
 
         this.lastSelectedReviewDeck = deckKey;
         const deck = this.reviewDecks[deckKey];
-
         if (deck.dueNotesCount > 0) {
             const index = this.data.settings.openRandomNote
                 ? Math.floor(Math.random() * deck.dueNotesCount)
@@ -685,6 +709,20 @@ export default class SRPlugin extends Plugin {
         }
 
         new Notice(t("ALL_CAUGHT_UP"));
+    }
+    // 在新窗口打开
+    openInNewWin(deck: ReviewDeck): void {
+        if (deck == null) {
+            new Notice("牌组不存在");
+            return;
+        }
+        if (deck.dueNotesCount <= 0 && deck.newNotes.length <= 0) {
+            new Notice(t("ALL_CAUGHT_UP"));
+            return;
+        }
+        const leaf = this.app.workspace.getLeaf("window");
+        const container = leaf.getContainer();
+        new NoteReviewWin(container.win, container.doc, leaf, deck, this);
     }
 
     createSrTFile(note: TFile): SrTFile {

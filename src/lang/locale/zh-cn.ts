@@ -24,6 +24,7 @@ export default {
 
     // main.ts
     OPEN_NOTE_FOR_REVIEW: "打开一个笔记开始复习",
+    REVIEW: "间隔复习",
     REVIEW_CARDS: "复习卡片",
     REVIEW_EASY_FILE_MENU: "复习：简单",
     REVIEW_GOOD_FILE_MENU: "复习：记得",

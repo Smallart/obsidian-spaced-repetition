@@ -24,6 +24,7 @@ export default {
 
     // main.ts
     OPEN_NOTE_FOR_REVIEW: "Open a note for review",
+    REVIEW: "Review",
     REVIEW_CARDS: "Review flashcards",
     REVIEW_EASY_FILE_MENU: "Review: Easy",
     REVIEW_GOOD_FILE_MENU: "Review: Good",

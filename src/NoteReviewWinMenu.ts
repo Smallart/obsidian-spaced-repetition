@@ -1,4 +1,4 @@
-import { App, ButtonComponent, MarkdownView, TFile,Notice } from "obsidian";
+import { App, ButtonComponent, MarkdownView, TFile, Notice } from "obsidian";
 import { NoteReviewWin } from "./NoteReviewWin";
 import SRPlugin from "./main";
 import { ReviewResponse } from "./scheduling";
@@ -30,9 +30,10 @@ export class WinMenu {
     generateMenu() {
         const menu = createDiv();
         if (menu) {
-            menu.setAttribute("style", "position: absolute; left: calc(50% - calc( 150px / 2));bottom:1em;height:30px;z-index:1;width:150px");
+            menu.setAttribute("style", "position: absolute; left: calc(50% - calc( 200px / 2));bottom:1em;height:30px;z-index:1;width:200px");
         }
 
+        
         const easeButton = new ButtonComponent(menu);
         easeButton.setButtonText("简单").onClick(() => {
             this.gradeNote(ReviewResponse.Easy);
@@ -48,6 +49,10 @@ export class WinMenu {
         hardButton.setButtonText("困难").onClick(() => {
             this.gradeNote(ReviewResponse.Hard);
         });
+        const skipButtnon = new ButtonComponent(menu);
+        skipButtnon.setButtonText("skip").onClick(() => {
+            this.winObj.next();
+        });
         menu.setAttribute("id", "menuModalBar");
         // 插入文档中
         this.doc.body.querySelector(".mod-vertical.mod-root")?.insertAdjacentElement("afterbegin", menu);
@@ -61,7 +66,7 @@ export class WinMenu {
     }
 
     async gradeNote(reviewResponse: ReviewResponse) {
-        if(this.winObj.currentNoteIndex>this.winObj.wholeNoteNumber){
+        if (this.winObj.currentNoteIndex > this.winObj.wholeNoteNumber) {
             new Notice("复习完毕");
             return;
         }
